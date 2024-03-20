@@ -5,6 +5,7 @@ pipeline {
 	}
 
     environment {
+        SEMGREP_APP_TOKEN = credentials('Semgrep')
         scannerHome = tool 'sonar-scanner'
         sonarqubeUrl = 'http://192.168.6.118:9000'  // Replace with your SonarQube server URL
         JAVA_HOME = "${tool 'java'}"
@@ -29,6 +30,24 @@ pipeline {
                 checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/ipreetgs/microService_TXApplication.git']])
             }
         }
+	    stages {
+        stage('Semgrep-Scan') {
+            steps {
+                script {
+                    // Pull the Semgrep Docker image
+                    docker.image('returntocorp/semgrep').pull()
+                    
+                    // Run Semgrep scan
+                    docker.image('returntocorp/semgrep').run(
+                        "-e SEMGREP_APP_TOKEN=${env.SEMGREP_APP_TOKEN}",
+                        "-v ${pwd()}:${pwd()} --workdir ${pwd()}",
+                        'returntocorp/semgrep',
+                        'semgrep ci'
+                    )
+                }
+            }
+        }
+    }
         stage('SonarQube analysis') { 
             steps {
                 withSonarQubeEnv(credentialsId: 'sonarqube', installationName: 'sonarqube')
